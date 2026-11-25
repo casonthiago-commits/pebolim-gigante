@@ -41,7 +41,7 @@ io.on('connection', socket => {
     let j = sala.jogadores[socket.id];
     if (!j) return;
     // Trava a barra pra não sair da mesa
-    y = Math.max(120, Math.min(380, y));
+ y = Math.max(90, Math.min(410, y));
     j.minhasBarras.forEach(idx => { sala.barras[j.time][idx] = y; });
     io.to(socket.data.codigo).emit('estado', sala);
   });
