@@ -11,25 +11,23 @@ let salas = {};
 function novaSala() {
   return {
     jogadores: {},
-    bola: { x: 400, y: 250, vx: 3, vy: 2 },
+    bola: { x: 400, y: 250, vx: 4, vy: 3 },
     placar: { azul: 0, vermelho: 0 },
-    barras: {
-      azul: [200, 350, 500, 650],
-      vermelho: [150, 300, 450, 600]
-    }
+    barras: { azul: [200, 350, 500, 650], vermelho: [150, 300, 450, 600] }
   };
+}
+
+function resetBola(direcao) {
+  return { x: 400, y: 250, vx: 4 * direcao, vy: 3 };
 }
 
 io.on('connection', socket => {
   socket.on('entrar', ({ codigo, nome, time }) => {
     if (!salas[codigo]) salas[codigo] = novaSala();
     let sala = salas[codigo];
-    // Conta quantos já tem nesse time
     let qtdTime = Object.values(sala.jogadores).filter(j => j.time === time).length;
-    // 0 = Defesa (barras 0 e 1), 1 = Ataque (barras 2 e 3)
     let papel = qtdTime === 0 ? 'DEFESA' : 'ATAQUE';
     let minhasBarras = papel === 'DEFESA' ? [0,1] : [2,3];
-
     sala.jogadores[socket.id] = { nome, time, papel, minhasBarras };
     socket.join(codigo);
     socket.data.codigo = codigo;
@@ -42,10 +40,9 @@ io.on('connection', socket => {
     if (!sala) return;
     let j = sala.jogadores[socket.id];
     if (!j) return;
-    // Só move AS SUAS barras, não as do parceiro
-    j.minhasBarras.forEach(idx => {
-      sala.barras[j.time][idx] = y;
-    });
+    // Trava a barra pra não sair da mesa
+    y = Math.max(120, Math.min(380, y));
+    j.minhasBarras.forEach(idx => { sala.barras[j.time][idx] = y; });
     io.to(socket.data.codigo).emit('estado', sala);
   });
 
@@ -59,11 +56,45 @@ setInterval(() => {
   for (let codigo in salas) {
     let s = salas[codigo];
     if (Object.keys(s.jogadores).length === 0) continue;
+
     s.bola.x += s.bola.vx;
     s.bola.y += s.bola.vy;
-    if (s.bola.y < 20 || s.bola.y > 480) s.bola.vy *= -1;
-    if (s.bola.x < 0) { s.placar.vermelho++; s.bola = { x: 400, y: 250, vx: 3, vy: 2 }; }
-    if (s.bola.x > 800) { s.placar.azul++; s.bola = { x: 400, y: 250, vx: -3, vy: 2 }; }
+
+    // 1. BATE NA PAREDE DE CIMA E DE BAIXO E VOLTA
+    if (s.bola.y < 15) { s.bola.y = 15; s.bola.vy *= -1; }
+    if (s.bola.y > 485) { s.bola.y = 485; s.bola.vy *= -1; }
+
+    // 2. GOL - só entra se estiver no meio (gol de 150px)
+    let noGol = s.bola.y > 175 && s.bola.y < 325;
+
+    // Gol do VERMELHO (bola saiu pela esquerda)
+    if (s.bola.x < 10) {
+      if (noGol) { s.placar.vermelho++; s.bola = resetBola(1); }
+      else { s.bola.x = 10; s.bola.vx *= -1; } // BATE NA PAREDE E VOLTA
+    }
+    // Gol do AZUL (bola saiu pela direita)
+    if (s.bola.x > 790) {
+      if (noGol) { s.placar.azul++; s.bola = resetBola(-1); }
+      else { s.bola.x = 790; s.bola.vx *= -1; } // BATE NA PAREDE E VOLTA
+    }
+
+    // 3. BATE NOS BONECOS E VOLTA
+    for (let time of ['azul','vermelho']) {
+      for (let bx of s.barras[time]) {
+        // Procura a barra mais perto
+        if (Math.abs(s.bola.x - bx) < 14) {
+          // A barra está nessa altura? usa o valor da barra como centro
+          let centroBarra = s.barras[time].find(v => v === bx);
+          // Se a bola estiver perto de algum boneco dessa barra
+          if (Math.abs(s.bola.y - centroBarra) < 130) {
+            s.bola.vx *= -1.05;
+            s.bola.vy += (Math.random() - 0.5) * 3;
+            s.bola.x += s.bola.vx > 0 ? 5 : -5; // empurra pra fora
+          }
+        }
+      }
+    }
+
     io.to(codigo).emit('estado', s);
   }
 }, 16);
