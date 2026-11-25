@@ -21,13 +21,20 @@ function novaSala() {
 }
 
 io.on('connection', socket => {
-  socket.on('entrar', ({ codigo, nome, personagem, time }) => {
+  socket.on('entrar', ({ codigo, nome, time }) => {
     if (!salas[codigo]) salas[codigo] = novaSala();
     let sala = salas[codigo];
-    sala.jogadores[socket.id] = { nome, personagem: personagem || '🐸', time, pronto: true };
+    // Conta quantos já tem nesse time
+    let qtdTime = Object.values(sala.jogadores).filter(j => j.time === time).length;
+    // 0 = Defesa (barras 0 e 1), 1 = Ataque (barras 2 e 3)
+    let papel = qtdTime === 0 ? 'DEFESA' : 'ATAQUE';
+    let minhasBarras = papel === 'DEFESA' ? [0,1] : [2,3];
+
+    sala.jogadores[socket.id] = { nome, time, papel, minhasBarras };
     socket.join(codigo);
     socket.data.codigo = codigo;
     io.to(codigo).emit('estado', sala);
+    socket.emit('meuPapel', papel);
   });
 
   socket.on('mover', (y) => {
@@ -35,8 +42,10 @@ io.on('connection', socket => {
     if (!sala) return;
     let j = sala.jogadores[socket.id];
     if (!j) return;
-    // move as 4 barras do time dele
-    sala.barras[j.time] = sala.barras[j.time].map(() => y);
+    // Só move AS SUAS barras, não as do parceiro
+    j.minhasBarras.forEach(idx => {
+      sala.barras[j.time][idx] = y;
+    });
     io.to(socket.data.codigo).emit('estado', sala);
   });
 
@@ -46,7 +55,6 @@ io.on('connection', socket => {
   });
 });
 
-// Física da bola - roda a cada 16ms
 setInterval(() => {
   for (let codigo in salas) {
     let s = salas[codigo];
@@ -54,18 +62,8 @@ setInterval(() => {
     s.bola.x += s.bola.vx;
     s.bola.y += s.bola.vy;
     if (s.bola.y < 20 || s.bola.y > 480) s.bola.vy *= -1;
-    // Gol
     if (s.bola.x < 0) { s.placar.vermelho++; s.bola = { x: 400, y: 250, vx: 3, vy: 2 }; }
     if (s.bola.x > 800) { s.placar.azul++; s.bola = { x: 400, y: 250, vx: -3, vy: 2 }; }
-    // Rebate simples nas barras
-    for (let time of ['azul', 'vermelho']) {
-      for (let bx of s.barras[time]) {
-        if (Math.abs(s.bola.x - bx) < 12 && Math.abs(s.bola.y - 250) < 120) {
-          s.bola.vx *= -1.05;
-          s.bola.vy += (Math.random() - 0.5) * 2;
-        }
-      }
-    }
     io.to(codigo).emit('estado', s);
   }
 }, 16);
