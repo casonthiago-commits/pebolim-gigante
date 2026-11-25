@@ -6,7 +6,7 @@ body{margin:0;background:#0f172a;color:#fff;font-family:Arial;text-align:center}
 #menu{padding:20px} input,button{padding:12px;border-radius:10px;border:none;font-size:16px;margin:5px}
 button{background:#22c55e;font-weight:bold;cursor:pointer}
 #mesa{position:relative;width:800px;height:500px;background:#16a34a;margin:10px auto;border:8px solid #78350f;border-radius:12px;overflow:hidden}
-.barra{position:absolute;width:8px;height:360px;background:#ddd;top:70px}
+.barra{position:absolute;width:8px;height:360px;background:#ddd}
 .boneco{position:absolute;font-size:32px;transform:translate(-50%,-50%)}
 #bola{position:absolute;font-size:28px;transform:translate(-50%,-50%)}
 .placar{font-size:28px;font-weight:bold}
@@ -50,12 +50,11 @@ socket.on('estado', s=>{
   let mesa=document.getElementById('mesa');
   mesa.querySelectorAll('.barra,.boneco').forEach(el=>el.remove());
   for(let time of ['azul','vermelho']){
-    s.barras[time].forEach(bx=>{
-      let b=document.createElement('div'); b.className='barra'; b.style.left=bx+'px'; b.style.background= time==='azul'?'#3b82f6':'#ef4444';
-      mesa.appendChild(b);
-      [-90,0,90].forEach(off=>{
-        let bon=document.createElement('div'); bon.className='boneco'; bon.innerText= time==='azul'?'🔵':'🔴';
-        bon.style.left=bx+'px'; bon.style.top=(250+off)+'px'; mesa.appendChild(bon);
+   s.barras[time].forEach((bx, idx)=>{
+  let centro = s.barras[time][idx];
+  let b=document.createElement('div'); b.className='barra'; b.style.left=bx+'px'; b.style.top=(centro-180)+'px'; b.style.background= time==='azul'?'#3b82f6':'#ef4444';
+  mesa.appendChild(b);
+  [-90,0,90].forEach(off=>{
       });
     });
   }
