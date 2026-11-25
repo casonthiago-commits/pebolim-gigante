@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pebolim Gigante</title>
+<style>
+body{margin:0;background:#0f172a;color:#fff;font-family:Arial;text-align:center}
+#menu{padding:20px} input,button{padding:12px;border-radius:10px;border:none;font-size:16px;margin:5px}
+button{background:#22c55e;font-weight:bold;cursor:pointer}
+#mesa{position:relative;width:800px;height:500px;background:#16a34a;margin:10px auto;border:8px solid #78350f;border-radius:12px;overflow:hidden}
+.barra{position:absolute;width:8px;height:360px;background:#ddd;top:70px}
+.boneco{position:absolute;font-size:32px;transform:translate(-50%,-50%)}
+#bola{position:absolute;font-size:28px;transform:translate(-50%,-50%)}
+.placar{font-size:28px;font-weight:bold}
+</style></head>
+<body>
+<div id="menu">
+<h1>⚽ PEBOLIM GIGANTE</h1>
+<input id="nome" placeholder="Seu nome" value="TH">
+<input id="codigo" placeholder="Código da sala" value="1234">
+<button onclick="entrar('azul')">ENTRAR AZUL 🔵</button>
+<button onclick="entrar('vermelho')">ENTRAR VERMELHO 🔴</button>
+<p>Use o mouse ou setas ↑ ↓ pra mover suas barras</p>
+</div>
+<div id="jogo" style="display:none">
+<div class="placar">AZUL <span id="pa">0</span> x <span id="pv">0</span> VERMELHO</div>
+<div id="mesa"><div id="bola">⚽</div></div>
+</div>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+let socket = io(), meuTime=null;
+function entrar(time){
+  meuTime=time;
+  socket.emit('entrar',{codigo:document.getElementById('codigo').value, nome:document.getElementById('nome').value, personagem:'🐸', time});
+  document.getElementById('menu').style.display='none';
+  document.getElementById('jogo').style.display='block';
+}
+document.addEventListener('mousemove', e=>{
+  let mesa=document.getElementById('mesa').getBoundingClientRect();
+  let y = e.clientY - mesa.top;
+  socket.emit('mover', y);
+});
+socket.on('estado', s=>{
+  document.getElementById('pa').innerText=s.placar.azul;
+  document.getElementById('pv').innerText=s.placar.vermelho;
+  let bola=document.getElementById('bola');
+  bola.style.left=s.bola.x+'px'; bola.style.top=s.bola.y+'px';
+  let mesa=document.getElementById('mesa');
+  mesa.querySelectorAll('.barra,.boneco').forEach(el=>el.remove());
+  for(let time of ['azul','vermelho']){
+    s.barras[time].forEach(bx=>{
+      let b=document.createElement('div'); b.className='barra'; b.style.left=bx+'px'; b.style.background= time==='azul'?'#3b82f6':'#ef4444';
+      mesa.appendChild(b);
+      [-90,0,90].forEach(off=>{
+        let bon=document.createElement('div'); bon.className='boneco'; bon.innerText= time==='azul'?'🔵':'🔴';
+        bon.style.left=bx+'px'; bon.style.top=(250+off)+'px'; mesa.appendChild(bon);
+      });
+    });
+  }
+});
+</script></body></html>
