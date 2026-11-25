@@ -22,7 +22,11 @@ button{background:#22c55e;font-weight:bold;cursor:pointer}
 </div>
 <div id="jogo" style="display:none">
 <div class="placar">AZUL <span id="pa">0</span> x <span id="pv">0</span> VERMELHO</div>
-<div id="mesa"><div id="bola">⚽</div></div>
+<div id="mesa">
+  <div style="position:absolute;left:-8px;top:175px;width:15px;height:150px;background:#000;border:2px solid #fff;"></div>
+  <div style="position:absolute;right:-8px;top:175px;width:15px;height:150px;background:#000;border:2px solid #fff;"></div>
+  <div id="bola">⚽</div>
+</div>
 </div>
 <script src="/socket.io/socket.io.js"></script>
 <script>
